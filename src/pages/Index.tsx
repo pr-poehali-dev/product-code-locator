@@ -202,8 +202,8 @@ const Index = () => {
 
           <TabsContent value="catalog" className="animate-scale-in">
             <Card className="p-6 mb-6 bg-gradient-to-r from-primary/10 to-secondary/10 border-2">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex-1">
                   <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
                     <Icon name="FileSpreadsheet" size={24} className="text-primary" />
                     Импорт из Excel
@@ -212,7 +212,21 @@ const Index = () => {
                     Загрузите файл со столбцами: ID, Название, Артикул, Зона, Ячейка, Количество
                   </p>
                 </div>
-                <div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="gap-2"
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = '/sample-products.xlsx';
+                      link.download = 'пример-товары.xlsx';
+                      link.click();
+                    }}
+                  >
+                    <Icon name="Download" size={20} />
+                    Скачать пример
+                  </Button>
                   <input
                     type="file"
                     ref={fileInputRef}
