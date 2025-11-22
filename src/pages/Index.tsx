@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 interface Product {
   id: string;
@@ -42,11 +45,13 @@ const zoneBorderColors = {
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [foundProduct, setFoundProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = (value: string) => {
     setSearchQuery(value);
     if (value.trim()) {
-      const found = mockProducts.find(
+      const found = products.find(
         (p) => p.article.toLowerCase().includes(value.toLowerCase()) || 
                p.id.toLowerCase().includes(value.toLowerCase())
       );
@@ -56,14 +61,52 @@ const Index = () => {
     }
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        const newProducts: Product[] = jsonData.map((row, index) => ({
+          id: String(row['ID'] || row['id'] || index + 1),
+          name: String(row['Название'] || row['name'] || row['Товар'] || ''),
+          article: String(row['Артикул'] || row['article'] || row['Код'] || ''),
+          zone: (String(row['Зона'] || row['zone'] || 'A').toUpperCase() as 'A' | 'B' | 'C' | 'D'),
+          cell: String(row['Ячейка'] || row['cell'] || ''),
+          quantity: Number(row['Количество'] || row['quantity'] || 0),
+        }));
+
+        setProducts(newProducts);
+        toast({
+          title: 'Файл загружен!',
+          description: `Импортировано ${newProducts.length} товаров`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Ошибка загрузки',
+          description: 'Проверьте формат Excel файла',
+          variant: 'destructive',
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const filteredProducts = searchQuery
-    ? mockProducts.filter(
+    ? products.filter(
         (p) =>
           p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.article.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.cell.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : mockProducts;
+    : products;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 md:p-8">
@@ -158,6 +201,37 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="catalog" className="animate-scale-in">
+            <Card className="p-6 mb-6 bg-gradient-to-r from-primary/10 to-secondary/10 border-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
+                    <Icon name="FileSpreadsheet" size={24} className="text-primary" />
+                    Импорт из Excel
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Загрузите файл со столбцами: ID, Название, Артикул, Зона, Ячейка, Количество
+                  </p>
+                </div>
+                <div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    size="lg"
+                    className="gap-2"
+                  >
+                    <Icon name="Upload" size={20} />
+                    Загрузить Excel
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProducts.map((product, index) => (
                 <Card
